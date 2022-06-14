@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const { validationResult, check } = require('express-validator');
 const User = require('../models/user');
 
-// @route   POST api/signup
+// @route   POST api/user/signup
 // @desc    Register user
 // @access  Public
 const signUp = async (req, res) => {
@@ -66,4 +66,61 @@ const signUp = async (req, res) => {
 	}
 };
 
-module.exports = { signUp };
+// @route   POST api/user/login
+// @desc    Login user
+// @access  Public
+const login = async (req, res) => {
+	const errors = validationResult(req);
+	if (!errors.isEmpty()) {
+		return res.status(400).json({ errors: errors.array() });
+	}
+	let { email, password } = req.body;
+	try {
+		let user = await User.findOne({ email });
+
+		//check for user
+		if (!user) {
+			return res.status(400).json({ message: 'User not found' });
+		}
+
+		//check password
+		const isMatch = await bcrypt.compare(password, user.password);
+		if (!isMatch) {
+			return res.status(400).json({ message: 'Incorrect password' });
+		}
+
+		//return token
+		let payload = {
+			user: {
+				id: user._id,
+			},
+		};
+
+		jwt.sign(
+			payload,
+			process.env.JWTKEY,
+			{ expiresIn: 360000 },
+			(err, token) => {
+				if (err) throw err;
+				res.header('x-auth-token').json({ token });
+			}
+		);
+	} catch (error) {
+		res.status(500).send('Server Error');
+		console.error(err.message);
+	}
+};
+
+// @route   GET api/user/profile
+// @desc    Get user profile
+// @access  Private
+const getProfile = async (req, res) => {
+	try {
+		res.json(req.user);
+	} catch (error) {
+		res.status(500).send('Server Error');
+		console.error(error.message);
+	}
+};
+
+module.exports = { signUp, login, getProfile };
