@@ -1,19 +1,35 @@
 const jwt = require('jsonwebtoken');
+const asyncHandler = require('express-async-handler');
+const User = require('../models/user');
 
-const verify = async (req, res, next) => {
-	const token = req.header('x-auth-token');
+const protect = asyncHandler(async (req, res, next) => {
+	let token;
+
+	if (
+		req.headers.authorization &&
+		req.headers.authorization.startsWith('Bearer')
+	) {
+		try {
+			// Get token from header
+			token = req.headers.authorization.split(' ')[1];
+
+			// Verify token
+			const decoded = jwt.verify(token, process.env.JWTKEY);
+
+			// Get user from the token
+			req.user = await User.findById(decoded.id).select('-password');
+
+			next();
+		} catch (error) {
+			res.status(401);
+			throw new Error('Not authorized');
+		}
+	}
 
 	if (!token) {
-		return res.status(401).json({ msg: 'No token, authorization denied' });
+		res.status(401);
+		throw new Error('Not authorized, no token');
 	}
+});
 
-	try {
-		const decoded = jwt.verify(token, process.env.JWTKEY);
-		req.user = decoded.user;
-		next();
-	} catch (error) {
-		res.status(401).json({ msg: 'Token is not valid' });
-	}
-};
-
-module.exports = verify;
+module.exports = { protect };
