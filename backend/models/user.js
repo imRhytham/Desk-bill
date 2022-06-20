@@ -10,7 +10,7 @@ const userSchema = new mongoose.Schema(
 			required: false,
 		},
 		history: { type: Array, default: [] },
-		phone: { type: Number, required: true },
+		phone: { type: Number, required: false },
 	},
 	{ timestamps: true }
 );
